@@ -1,0 +1,27 @@
+{
+  "name": "sentinelmat-backend",
+  "version": "1.0.0",
+  "description": "SentinelMAT Backend REST API and MATLAB Analysis Integration Service",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "test": "echo \"Running backend tests...\" && tsx tests/smoke.test.ts"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.7.5",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  }
+}
