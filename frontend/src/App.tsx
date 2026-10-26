@@ -49,12 +49,12 @@ export const App: React.FC = () => {
   // Parallax Ambient Coordinates
   const [parallaxOffset, setParallaxOffset] = useState({ x: 0, y: 0 });
 
-  // Core Monitoring Data
-  const [hosts, setHosts] = useState<Host[]>([]);
-  const [selectedHostId, setSelectedHostId] = useState<string>('');
-  const [latestSample, setLatestSample] = useState<MetricSample | undefined>();
-  const [history, setHistory] = useState<MetricSample[]>([]);
-  const [analysis, setAnalysis] = useState<MatlabPipelineOutput | undefined>();
+  // Core Monitoring Data (Pre-seeded for instant first-frame rendering on Vercel)
+  const [hosts, setHosts] = useState<Host[]>(() => api.getInitialHosts());
+  const [selectedHostId, setSelectedHostId] = useState<string>('sentinel-prod-01');
+  const [latestSample, setLatestSample] = useState<MetricSample | undefined>(() => api.getInitialSample());
+  const [history, setHistory] = useState<MetricSample[]>(() => api.getInitialHistory());
+  const [analysis, setAnalysis] = useState<MatlabPipelineOutput | undefined>(() => api.getInitialAnalysis());
   const [anomalies, setAnomalies] = useState<AnomalyRecord[]>([]);
   const [incidents, setIncidents] = useState<IncidentRecord[]>([]);
   const [rules, setRules] = useState<AlertRule[]>([]);

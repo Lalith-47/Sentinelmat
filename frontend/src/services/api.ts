@@ -31,6 +31,18 @@ export function setForceDemoMode(val: boolean) {
   localStorage.setItem(STORAGE_KEY_FORCE_DEMO, val ? 'true' : 'false');
 }
 
+export function shouldFetchBackend(): boolean {
+  if (isForceDemoMode()) return false;
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    const backend = getStoredBackendUrl();
+    // Browsers block plain HTTP from HTTPS pages as Mixed Content
+    if (backend.startsWith('http://')) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function getApiBase(): string {
   const base = getStoredBackendUrl().replace(/\/$/, '');
   return `${base}/api`;
@@ -540,7 +552,7 @@ export const api = {
 
   // Hosts
   async getHosts(): Promise<Host[]> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/hosts`, { signal: AbortSignal.timeout(3000) });
         if (res.ok) return res.json();
@@ -578,7 +590,7 @@ export const api = {
 
   // Health
   async getHealth(): Promise<any> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/health`, { signal: AbortSignal.timeout(3000) });
         if (res.ok) return res.json();
@@ -589,7 +601,7 @@ export const api = {
 
   // Telemetry History
   async getHistory(hostId: string, limit: number = 100): Promise<MetricSample[]> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/metrics/history?hostId=${encodeURIComponent(hostId)}&limit=${limit}`, {
           signal: AbortSignal.timeout(3500),
@@ -603,7 +615,7 @@ export const api = {
 
   // Latest Sample
   async getLatestSample(hostId: string): Promise<MetricSample> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/metrics/latest/${encodeURIComponent(hostId)}`, {
           signal: AbortSignal.timeout(3000),
@@ -616,7 +628,7 @@ export const api = {
 
   // Trigger MATLAB Analysis
   async triggerMatlabAnalysis(hostId: string): Promise<MatlabPipelineOutput> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/analysis/run`, {
           method: 'POST',
@@ -636,7 +648,7 @@ export const api = {
   },
 
   async getLatestAnalysis(hostId: string): Promise<MatlabPipelineOutput> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/analysis/latest?hostId=${encodeURIComponent(hostId)}`, {
           signal: AbortSignal.timeout(3500),
@@ -652,7 +664,7 @@ export const api = {
 
   // Anomalies
   async getAnomalies(hostId?: string): Promise<AnomalyRecord[]> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const url = hostId ? `${getApiBase()}/anomalies?hostId=${encodeURIComponent(hostId)}` : `${getApiBase()}/anomalies`;
         const res = await fetch(url, { signal: AbortSignal.timeout(3500) });
@@ -693,7 +705,7 @@ export const api = {
 
   // Incidents
   async getIncidents(): Promise<IncidentRecord[]> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/incidents`, { signal: AbortSignal.timeout(3500) });
         if (res.ok) return res.json();
@@ -703,7 +715,7 @@ export const api = {
   },
 
   async acknowledgeIncident(id: number, user: string = 'Operator'): Promise<IncidentRecord> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/incidents/${id}/acknowledge`, {
           method: 'POST',
@@ -727,7 +739,7 @@ export const api = {
   },
 
   async resolveIncident(id: number, notes: string): Promise<IncidentRecord> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/incidents/${id}/resolve`, {
           method: 'POST',
@@ -752,7 +764,7 @@ export const api = {
 
   // Alerts
   async getAlertRules(): Promise<AlertRule[]> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/alerts/rules`, { signal: AbortSignal.timeout(3500) });
         if (res.ok) return res.json();
@@ -762,7 +774,7 @@ export const api = {
   },
 
   async updateAlertRule(id: number, updates: Partial<AlertRule>): Promise<AlertRule> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/alerts/rules/${id}`, {
           method: 'PUT',
@@ -782,7 +794,7 @@ export const api = {
 
   // Simulations
   async startSimulation(type: 'cpu' | 'memory' | 'disk' | 'network', durationSeconds: number): Promise<SimulationItem> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/simulation/start`, {
           method: 'POST',
@@ -804,7 +816,7 @@ export const api = {
   },
 
   async getSimulationStatus(): Promise<SimulationItem[]> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/simulation/status`, { signal: AbortSignal.timeout(3500) });
         if (res.ok) return res.json();
@@ -814,7 +826,7 @@ export const api = {
   },
 
   async stopSimulation(id: string): Promise<any> {
-    if (!isForceDemoMode()) {
+    if (shouldFetchBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/simulation/stop/${id}`, { method: 'POST' });
         if (res.ok) return res.json();
@@ -822,5 +834,48 @@ export const api = {
     }
     mockActiveSimulations = mockActiveSimulations.filter((s) => s.id !== id);
     return { success: true };
+  },
+
+  getInitialHosts(): Host[] {
+    return [
+      {
+        id: 'sentinel-prod-01',
+        hostname: 'sentinel-core.infra.internal',
+        ip_address: '10.240.0.14',
+        os_info: 'Ubuntu Linux 24.04 LTS (x86_64 Kernel 6.8.0-45-generic)',
+        cpu_count: 32,
+        total_memory_bytes: 67108864000,
+        total_disk_bytes: 984088215552,
+        status: 'online',
+        last_seen_at: new Date().toISOString(),
+        created_at: '2026-01-01T00:00:00Z',
+      },
+      {
+        id: 'sentinel-edge-02',
+        hostname: 'sentinel-gateway.eu-central.node',
+        ip_address: '10.240.1.28',
+        os_info: 'Debian 12 Bookworm (x86_64)',
+        cpu_count: 16,
+        total_memory_bytes: 33554432000,
+        total_disk_bytes: 512000000000,
+        status: 'online',
+        last_seen_at: new Date().toISOString(),
+        created_at: '2026-01-01T00:00:00Z',
+      },
+    ];
+  },
+
+  getInitialSample(): MetricSample {
+    initMockHistory();
+    return mockHistory[mockHistory.length - 1];
+  },
+
+  getInitialHistory(): MetricSample[] {
+    initMockHistory();
+    return [...mockHistory];
+  },
+
+  getInitialAnalysis(): MatlabPipelineOutput {
+    return computeMockMatlabAnalysis();
   },
 };
