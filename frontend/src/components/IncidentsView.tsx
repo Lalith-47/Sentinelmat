@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { IncidentRecord } from '../types';
-import { ShieldAlert, CheckCircle2, UserCheck } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, UserCheck, X } from 'lucide-react';
 
 interface IncidentsViewProps {
   incidents: IncidentRecord[];
@@ -16,7 +16,7 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedIncident, setSelectedIncident] = useState<IncidentRecord | null>(null);
   const [modalType, setModalType] = useState<'ack' | 'resolve' | null>(null);
-  const [operatorName, setOperatorName] = useState('On-Call Engineer');
+  const [operatorName, setOperatorName] = useState('Senior SRE Engineer');
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -32,7 +32,7 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
       if (modalType === 'ack') {
         await onAcknowledge(selectedIncident.id, operatorName);
       } else if (modalType === 'resolve') {
-        await onResolve(selectedIncident.id, resolutionNotes || 'Resolved verified by operator.');
+        await onResolve(selectedIncident.id, resolutionNotes || 'Resolved and root cause mitigated.');
       }
       setModalType(null);
       setSelectedIncident(null);
@@ -43,24 +43,38 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
   };
 
   return (
-    <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="bento-card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Header & Controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ShieldAlert size={20} color="#ef4444" />
-            <h2 className="title-md">Incident Lifecycle &amp; Triage</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: 'var(--accent-crimson-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ShieldAlert size={18} color="var(--accent-crimson)" />
+            </div>
+            <h2 className="section-title">Incident Lifecycle &amp; Triage</h2>
           </div>
-          <p className="text-muted">Track, acknowledge, and resolve automated alerts and incident triggers</p>
+          <p className="section-desc" style={{ marginTop: 4 }}>
+            Deterministic triaging, acknowledgment audits, and automated root cause resolution records
+          </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
+        {/* Filter Segmented Control */}
+        <div className="segmented-control">
           {(['all', 'open', 'acknowledged', 'resolved'] as const).map((st) => (
             <button
               key={st}
               onClick={() => setFilterStatus(st)}
-              className={`btn ${filterStatus === st ? 'btn-primary' : 'btn-outline'}`}
-              style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+              className={`segmented-tab ${filterStatus === st ? 'active' : ''}`}
             >
               {st.toUpperCase()}
             </button>
@@ -68,62 +82,83 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
         </div>
       </div>
 
-      {/* Incidents Table / Cards */}
+      {/* Incidents Table */}
       {filtered.length === 0 ? (
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-          No incidents matching status "{filterStatus}".
+        <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <CheckCircle2 size={32} color="var(--accent-emerald)" style={{ marginBottom: 10 }} />
+          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>No Matching Incidents</div>
+          <p className="section-desc" style={{ marginTop: 4 }}>
+            No incident records currently matching filter "{filterStatus}".
+          </p>
         </div>
       ) : (
-        <div className="data-table-container">
-          <table className="data-table">
+        <div className="table-viewport">
+          <table className="apple-table">
             <thead>
               <tr>
                 <th>ID</th>
                 <th>Severity</th>
                 <th>Status</th>
-                <th>Host</th>
-                <th>Title / Trigger</th>
+                <th>Host Target</th>
+                <th>Incident Details</th>
                 <th>Observed</th>
-                <th>Timestamp</th>
-                <th>Actions</th>
+                <th>Detected At</th>
+                <th>Operations</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((inc) => (
                 <tr key={inc.id}>
-                  <td className="code-font" style={{ fontWeight: 700 }}>#{inc.id}</td>
+                  <td className="font-mono" style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                    #{inc.id}
+                  </td>
                   <td>
-                    <span className={`status-badge ${inc.severity}`}>{inc.severity}</span>
+                    <span className={`status-pill ${inc.severity}`}>{inc.severity}</span>
                   </td>
                   <td>
                     <span
                       style={{
-                        padding: '3px 8px',
-                        borderRadius: 4,
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        background: inc.status === 'open' ? 'rgba(239,68,68,0.2)' : inc.status === 'acknowledged' ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)',
-                        color: inc.status === 'open' ? '#f87171' : inc.status === 'acknowledged' ? '#fbbf24' : '#34d399',
+                        padding: '4px 10px',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.03em',
+                        background:
+                          inc.status === 'open'
+                            ? 'var(--accent-crimson-bg)'
+                            : inc.status === 'acknowledged'
+                            ? 'var(--accent-amber-bg)'
+                            : 'var(--accent-emerald-bg)',
+                        color:
+                          inc.status === 'open'
+                            ? 'var(--accent-crimson)'
+                            : inc.status === 'acknowledged'
+                            ? 'var(--accent-amber)'
+                            : 'var(--accent-emerald)',
                       }}
                     >
                       {inc.status.toUpperCase()}
                     </span>
                   </td>
-                  <td className="code-font">{inc.host_id}</td>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{inc.title}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{inc.summary}</div>
+                  <td className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    {inc.host_id}
                   </td>
-                  <td className="code-font" style={{ fontWeight: 700 }}>
-                    {inc.trigger_value.toFixed(2)}
-                  </td>
-                  <td className="code-font text-muted">{new Date(inc.created_at).toLocaleTimeString()}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{inc.title}</div>
+                    <div style={{ fontSize: '0.775rem', color: 'var(--text-tertiary)', marginTop: 2 }}>{inc.summary}</div>
+                  </td>
+                  <td className="font-mono" style={{ fontWeight: 700 }}>
+                    {inc.trigger_value.toFixed(1)}
+                  </td>
+                  <td className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>
+                    {new Date(inc.created_at).toLocaleTimeString()}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 8 }}>
                       {inc.status === 'open' && (
                         <button
-                          className="btn btn-outline"
-                          style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                          className="apple-btn apple-btn-glass"
+                          style={{ padding: '5px 12px', fontSize: '0.75rem' }}
                           onClick={() => {
                             setSelectedIncident(inc);
                             setModalType('ack');
@@ -135,8 +170,8 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
                       )}
                       {inc.status !== 'resolved' && (
                         <button
-                          className="btn btn-primary"
-                          style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#059669' }}
+                          className="apple-btn apple-btn-primary"
+                          style={{ padding: '5px 12px', fontSize: '0.75rem' }}
                           onClick={() => {
                             setSelectedIncident(inc);
                             setModalType('resolve');
@@ -157,48 +192,59 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
 
       {/* Modal for Acknowledge / Resolve */}
       {modalType && selectedIncident && (
-        <div className="modal-overlay" onClick={() => setModalType(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 className="title-md" style={{ marginBottom: 12 }}>
-              {modalType === 'ack' ? `Acknowledge Incident #${selectedIncident.id}` : `Resolve Incident #${selectedIncident.id}`}
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
-              {selectedIncident.title}: {selectedIncident.summary}
-            </p>
+        <div className="apple-modal-overlay" onClick={() => setModalType(null)}>
+          <div className="apple-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <h3 className="section-title">
+                  {modalType === 'ack' ? `Acknowledge Incident #${selectedIncident.id}` : `Resolve Incident #${selectedIncident.id}`}
+                </h3>
+                <p className="section-desc" style={{ marginTop: 4 }}>
+                  {selectedIncident.title}
+                </p>
+              </div>
+              <button
+                onClick={() => setModalType(null)}
+                className="apple-btn apple-btn-glass"
+                style={{ width: 32, height: 32, padding: 0, borderRadius: '50%' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
 
             {modalType === 'ack' ? (
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                  Operator / Engineer Identifier:
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 8 }}>
+                  Incident Commander / Operator Identifier:
                 </label>
                 <input
                   type="text"
-                  className="form-input"
+                  className="cupertino-input font-mono"
                   value={operatorName}
                   onChange={(e) => setOperatorName(e.target.value)}
                 />
               </div>
             ) : (
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                  Resolution Notes &amp; Root Cause Analysis:
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 8 }}>
+                  Root Cause Analysis &amp; Resolution Audit:
                 </label>
                 <textarea
-                  className="form-textarea"
+                  className="cupertino-textarea"
                   rows={3}
                   value={resolutionNotes}
                   onChange={(e) => setResolutionNotes(e.target.value)}
-                  placeholder="Root cause identified, system load mitigated, capacity scaled."
+                  placeholder="Root cause identified, memory leak cleared, capacity limits expanded."
                 />
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <button className="btn btn-outline" onClick={() => setModalType(null)} disabled={isSubmitting}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              <button className="apple-btn apple-btn-glass" onClick={() => setModalType(null)} disabled={isSubmitting}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleAction} disabled={isSubmitting}>
-                {isSubmitting ? 'Saving...' : modalType === 'ack' ? 'Confirm Acknowledge' : 'Confirm Resolution'}
+              <button className="apple-btn apple-btn-primary" onClick={handleAction} disabled={isSubmitting}>
+                {isSubmitting ? 'Recording...' : modalType === 'ack' ? 'Confirm Acknowledge' : 'Confirm Resolution'}
               </button>
             </div>
           </div>

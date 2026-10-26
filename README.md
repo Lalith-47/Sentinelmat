@@ -201,6 +201,34 @@ For exhaustive derivations, see [MATHEMATICAL_METHODS.md](file:///home/lalith/Pr
 
 ---
 
-## 7. License
+## 7. Vercel Deployment & Hybrid Architecture Guide
+
+SentinelMAT supports a **Hybrid Enterprise Deployment**:
+- The **Frontend Dashboard** can be hosted on **Vercel** with global low-latency CDN edge delivery.
+- The **Engine, PostgreSQL Database, and Linux Telemetry Collector** stay on your local workstation / private infrastructure.
+
+### Option A: 1-Click Vercel Deployment via Git
+1. Push your repository to GitHub / GitLab.
+2. Import the project into your [Vercel Dashboard](https://vercel.com).
+3. The project includes both root [vercel.json](file:///home/lalith/Projects/final%20project%20matlab/vercel.json) and [frontend/vercel.json](file:///home/lalith/Projects/final%20project%20matlab/frontend/vercel.json) pre-configured with Vite Single Page Application routing and build instructions.
+4. Set Root Directory to `./` or `frontend`.
+
+### Option B: Bridging Vercel Frontend to Your Local Backend Engine
+When accessing your Vercel deployment:
+1. Start your local backend on port 5000:
+   ```bash
+   cd backend && npm run dev
+   ```
+2. Expose port 5000 via a secure HTTPS tunnel (e.g., ngrok or Cloudflare Tunnel):
+   ```bash
+   ngrok http 5000
+   ```
+3. In the Vercel frontend, click the **Globe / Connection** button in the top navigation bar.
+4. Paste your public HTTPS tunnel URL (e.g., `https://xyz.ngrok-free.app`) and click **Ping** &rarr; **Apply Configuration**.
+5. *Zero-Config Fallback:* If your local engine is offline, the frontend automatically features an **Interactive Enterprise Simulator Mode** with live mathematical calculation of OLS regression lines, distribution percentiles, and Z-score anomalies so the dashboard never exhibits blank or broken states.
+
+---
+
+## 8. License
 
 Licensed under the MIT License.

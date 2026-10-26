@@ -1,6 +1,6 @@
 import React from 'react';
 import { ForecastResult, PredictionEvaluation } from '../types';
-import { TrendingUp, Clock, CheckCircle } from 'lucide-react';
+import { TrendingUp, Clock, CheckCircle, Cpu } from 'lucide-react';
 
 interface ForecastChartProps {
   forecast?: ForecastResult;
@@ -12,24 +12,28 @@ interface ForecastChartProps {
 export const ForecastChart: React.FC<ForecastChartProps> = ({
   forecast,
   evaluation,
-  metricTitle = 'Disk Capacity Exhaustion Model',
+  metricTitle = 'Storage Exhaustion Model (OLS Regression)',
   historicalValues = [],
 }) => {
   if (!forecast) {
     return (
-      <div className="glass-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-        Run MATLAB Analysis to generate capacity exhaustion forecasts.
+      <div className="bento-card" style={{ padding: 48, textAlign: 'center', color: 'var(--text-secondary)' }}>
+        <Cpu size={32} color="var(--accent-purple)" style={{ marginBottom: 12 }} />
+        <h3 className="section-title">MATLAB Predictive Engine Ready</h3>
+        <p className="section-desc" style={{ marginTop: 6 }}>
+          Run MATLAB Analysis above to generate Ordinary Least Squares (OLS) capacity exhaustion forecasts.
+        </p>
       </div>
     );
   }
 
   // Combine historical and projected data points for visualization
-  const history = historicalValues.length > 0 ? historicalValues.slice(-20) : [60, 62, 64, 66, 68, 70];
+  const history = historicalValues.length > 0 ? historicalValues.slice(-24) : [62, 64, 65, 68, 70, 72];
   const projected = forecast.projectedValues || [];
 
-  const width = 800;
-  const height = 280;
-  const padding = { top: 30, right: 40, bottom: 40, left: 50 };
+  const width = 900;
+  const height = 320;
+  const padding = { top: 35, right: 45, bottom: 45, left: 55 };
 
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
@@ -55,28 +59,42 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
   const thresholdY = getY(targetThreshold);
 
   return (
-    <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="bento-card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <TrendingUp size={20} color="#8b5cf6" />
-            <h2 className="title-md">{metricTitle}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: 'var(--accent-purple-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <TrendingUp size={18} color="var(--accent-purple)" />
+            </div>
+            <h2 className="section-title">{metricTitle}</h2>
           </div>
-          <p className="text-muted">Ordinary Least Squares (OLS) regression &amp; Time-To-Exhaustion (TTE) prediction</p>
+          <p className="section-desc" style={{ marginTop: 4 }}>
+            Ordinary Least Squares (OLS) regression &amp; Time-To-Exhaustion (TTE) prediction derived via MATLAB .m routines
+          </p>
         </div>
 
         {/* TTE Status Pill */}
         <div>
           {forecast.isPredictable && forecast.timeToExhaustionHours !== null ? (
-            <div className="status-badge critical" style={{ fontSize: '0.85rem', padding: '6px 14px' }}>
+            <div className="status-pill critical" style={{ fontSize: '0.85rem', padding: '6px 14px' }}>
               <Clock size={16} />
-              <span>Breach in {forecast.timeToExhaustionHours.toFixed(1)} hrs</span>
+              <span>Breach Horizon: {forecast.timeToExhaustionHours.toFixed(1)} hrs</span>
             </div>
           ) : (
-            <div className="status-badge healthy" style={{ fontSize: '0.85rem', padding: '6px 14px' }}>
+            <div className="status-pill healthy" style={{ fontSize: '0.85rem', padding: '6px 14px' }}>
               <CheckCircle size={16} />
-              <span>Stable (No Exhaustion Projected)</span>
+              <span>Stable (No Monotonic Exhaustion)</span>
             </div>
           )}
         </div>
@@ -90,8 +108,15 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
             const y = getY(tick);
             return (
               <g key={tick}>
-                <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-                <text x={padding.left - 8} y={y + 4} fill={tick === targetThreshold ? '#ef4444' : 'var(--text-muted)'} fontSize="10" textAnchor="end" fontFamily="var(--font-mono)">
+                <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="var(--border-subtle)" strokeDasharray="3 3" />
+                <text
+                  x={padding.left - 12}
+                  y={y + 4}
+                  fill={tick === targetThreshold ? 'var(--accent-crimson)' : 'var(--text-tertiary)'}
+                  fontSize="11"
+                  textAnchor="end"
+                  fontFamily="var(--font-mono)"
+                >
                   {tick}%
                 </text>
               </g>
@@ -104,23 +129,31 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
             y1={thresholdY}
             x2={width - padding.right}
             y2={thresholdY}
-            stroke="#ef4444"
+            stroke="#ff453a"
             strokeWidth="2"
             strokeDasharray="6 3"
           />
-          <text x={width - padding.right - 5} y={thresholdY - 6} fill="#ef4444" fontSize="10" textAnchor="end" fontWeight="600" fontFamily="var(--font-mono)">
-            Critical Threshold ({targetThreshold}%)
+          <text
+            x={width - padding.right - 10}
+            y={thresholdY - 8}
+            fill="#ff453a"
+            fontSize="11"
+            textAnchor="end"
+            fontWeight="700"
+            fontFamily="var(--font-mono)"
+          >
+            CRITICAL CAPACITY THRESHOLD ({targetThreshold}%)
           </text>
 
           {/* Historical Observed Path */}
-          <path d={histPathD} fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
+          <path d={histPathD} fill="none" stroke="#ff9f0a" strokeWidth="2.8" strokeLinecap="round" />
 
           {/* Projected Path (Dashed Cyan) */}
-          <path d={projPathD} fill="none" stroke="#06b6d4" strokeWidth="2.5" strokeDasharray="6 4" strokeLinecap="round" />
+          <path d={projPathD} fill="none" stroke="#64d2ff" strokeWidth="2.8" strokeDasharray="6 4" strokeLinecap="round" />
 
-          {/* Dots on historical */}
+          {/* Historical Nodes */}
           {history.map((v, i) => (
-            <circle key={i} cx={getX(i)} cy={getY(v)} r="3" fill="#f59e0b" />
+            <circle key={i} cx={getX(i)} cy={getY(v)} r="3" fill="#ff9f0a" />
           ))}
 
           {/* Forecast Horizon Divider */}
@@ -129,45 +162,60 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
             y1={padding.top}
             x2={getX(lastHistIdx)}
             y2={padding.top + chartH}
-            stroke="rgba(255,255,255,0.2)"
+            stroke="var(--text-tertiary)"
             strokeDasharray="2 2"
           />
-          <text x={getX(lastHistIdx) - 6} y={padding.top + 14} fill="var(--text-muted)" fontSize="9" textAnchor="end" fontFamily="var(--font-mono)">
-            Current Time
+          <text
+            x={getX(lastHistIdx) - 8}
+            y={padding.top + 16}
+            fill="var(--text-tertiary)"
+            fontSize="10"
+            textAnchor="end"
+            fontFamily="var(--font-mono)"
+          >
+            Present Observation
           </text>
-          <text x={getX(lastHistIdx) + 6} y={padding.top + 14} fill="#06b6d4" fontSize="9" textAnchor="start" fontFamily="var(--font-mono)">
+          <text
+            x={getX(lastHistIdx) + 8}
+            y={padding.top + 16}
+            fill="#64d2ff"
+            fontSize="10"
+            textAnchor="start"
+            fontWeight="600"
+            fontFamily="var(--font-mono)"
+          >
             Projected Horizon &rarr;
           </text>
         </svg>
       </div>
 
       {/* Regression Diagnostics Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, paddingTop: 6 }}>
-        <div style={{ background: 'var(--bg-surface-elevated)', padding: 12, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-          <div className="text-muted" style={{ fontSize: '0.75rem' }}>Growth Rate</div>
-          <div className="code-font" style={{ fontSize: '1.05rem', fontWeight: 600, color: forecast.slope > 0 ? '#f59e0b' : '#10b981' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
+        <div style={{ background: 'var(--bg-hover)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4 }}>Growth Trajectory</div>
+          <div className="font-mono" style={{ fontSize: '1.2rem', fontWeight: 700, color: forecast.slope > 0 ? 'var(--accent-amber)' : 'var(--accent-emerald)' }}>
             {forecast.slopePerDay >= 0 ? `+${forecast.slopePerDay.toFixed(2)}` : forecast.slopePerDay.toFixed(2)}% / day
           </div>
         </div>
 
-        <div style={{ background: 'var(--bg-surface-elevated)', padding: 12, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-          <div className="text-muted" style={{ fontSize: '0.75rem' }}>Goodness of Fit (R&sup2;)</div>
-          <div className="code-font" style={{ fontSize: '1.05rem', fontWeight: 600, color: '#8b5cf6' }}>
+        <div style={{ background: 'var(--bg-hover)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4 }}>Goodness of Fit (R&sup2;)</div>
+          <div className="font-mono" style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-purple)' }}>
             {forecast.rSquared.toFixed(3)}
           </div>
         </div>
 
-        <div style={{ background: 'var(--bg-surface-elevated)', padding: 12, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-          <div className="text-muted" style={{ fontSize: '0.75rem' }}>In-Sample RMSE</div>
-          <div className="code-font" style={{ fontSize: '1.05rem', fontWeight: 600, color: '#38bdf8' }}>
+        <div style={{ background: 'var(--bg-hover)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4 }}>In-Sample RMSE</div>
+          <div className="font-mono" style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-blue)' }}>
             {forecast.rmse.toFixed(3)}
           </div>
         </div>
 
         {evaluation && evaluation.status === 'valid' && (
-          <div style={{ background: 'var(--bg-surface-elevated)', padding: 12, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-            <div className="text-muted" style={{ fontSize: '0.75rem' }}>Out-of-Sample MAE</div>
-            <div className="code-font" style={{ fontSize: '1.05rem', fontWeight: 600, color: '#10b981' }}>
+          <div style={{ background: 'var(--bg-hover)', padding: 14, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4 }}>Out-of-Sample MAE</div>
+            <div className="font-mono" style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-emerald)' }}>
               {evaluation.outOfSampleMAE.toFixed(3)} ({evaluation.testCount} pts)
             </div>
           </div>
@@ -176,8 +224,17 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
 
       {/* Rationale explanation */}
       {forecast.reason && (
-        <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', padding: '10px 14px', borderRadius: 8 }}>
-          <strong>Mathematical Interpretation:</strong> {forecast.reason}
+        <div
+          style={{
+            fontSize: '0.85rem',
+            color: 'var(--text-secondary)',
+            background: 'var(--bg-hover)',
+            padding: '12px 16px',
+            borderRadius: 'var(--radius-sm)',
+            borderLeft: '3px solid var(--accent-purple)',
+          }}
+        >
+          <strong style={{ color: 'var(--text-primary)' }}>Mathematical Interpretation:</strong> {forecast.reason}
         </div>
       )}
     </div>

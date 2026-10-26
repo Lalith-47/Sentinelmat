@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SimulationItem } from '../types';
-import { Flame, Cpu, Database, HardDrive, Square, AlertOctagon } from 'lucide-react';
+import { Flame, Cpu, Database, HardDrive, Square, ShieldCheck, Zap } from 'lucide-react';
 
 interface SimulationPanelProps {
   activeSimulations: SimulationItem[];
@@ -26,118 +26,216 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
   };
 
   return (
-    <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div className="bento-card" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Header */}
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Flame size={20} color="#f59e0b" />
-          <h2 className="title-md">Controlled Fault Simulation Studio</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: 'var(--accent-amber-bg)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Flame size={18} color="var(--accent-amber)" />
+          </div>
+          <h2 className="section-title">Controlled Fault Simulation Studio</h2>
         </div>
-        <p className="text-muted">
-          Reproduce real infrastructure stress in a safe, strictly-bounded sandbox to verify MATLAB anomaly detection and capacity forecasting.
+        <p className="section-desc" style={{ marginTop: 4 }}>
+          Reproduce realistic infrastructure stress in a strictly-bounded sandbox to verify MATLAB statistical anomaly triggers and capacity models
         </p>
       </div>
 
-      {/* Safety Notice Box */}
-      <div style={{
-        background: 'rgba(59, 130, 246, 0.08)',
-        border: '1px solid rgba(59, 130, 246, 0.25)',
-        borderRadius: 8,
-        padding: '12px 16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        fontSize: '0.85rem',
-        color: '#93c5fd'
-      }}>
-        <AlertOctagon size={20} color="#60a5fa" style={{ flexShrink: 0 }} />
+      {/* Strict Safety Banner */}
+      <div
+        style={{
+          background: 'var(--accent-blue-bg)',
+          border: '1px solid rgba(41, 151, 255, 0.25)',
+          borderRadius: 'var(--radius-md)',
+          padding: '14px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          fontSize: '0.825rem',
+          color: 'var(--text-primary)',
+        }}
+      >
+        <ShieldCheck size={22} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
         <div>
-          <strong>Strict Safety Boundaries Active:</strong> Memory pressure is capped to 20% free RAM; disk growth runs on a disposable scratch volume with instant automatic cleanup; all simulations have hard watchdog timers.
+          <strong>Deterministic Safety Boundaries:</strong> All simulated loads are bounded by strict cgroups
+          ceilings (memory allocation is capped to 20% available RAM, disk growth writes to disposable scratch volumes
+          with automatic garbage collection upon test completion).
         </div>
       </div>
 
-      {/* Duration Selector */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Simulation Duration:</span>
-        {[15, 30, 60].map((d) => (
-          <button
-            key={d}
-            onClick={() => setDuration(d)}
-            className={`btn ${duration === d ? 'btn-primary' : 'btn-outline'}`}
-            style={{ padding: '4px 12px', fontSize: '0.8rem' }}
-          >
-            {d}s
-          </button>
-        ))}
+      {/* Duration Control */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+          Simulation Duration:
+        </span>
+        <div className="segmented-control">
+          {[15, 30, 60].map((d) => (
+            <button
+              key={d}
+              onClick={() => setDuration(d)}
+              className={`segmented-tab ${duration === d ? 'active' : ''}`}
+              style={{ padding: '4px 14px' }}
+            >
+              {d}s
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Trigger Buttons Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-        {/* CPU Stress */}
-        <div style={{ background: 'var(--bg-surface-elevated)', padding: 16, borderRadius: 10, border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-            <Cpu size={18} color="#3b82f6" />
-            <span>CPU Stress Spike</span>
+      {/* Trigger Bento Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 18 }}>
+        {/* CPU Spike */}
+        <div
+          className="bento-card"
+          style={{
+            background: 'var(--bg-hover)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: 14,
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  background: 'var(--accent-blue-bg)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Cpu size={16} color="var(--accent-blue)" />
+              </div>
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Multi-Core CPU Spike</span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              Executes bounded arithmetic matrix multiplication to drive Z-Score &gt; 3.0 anomaly boundary breach.
+            </p>
           </div>
-          <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-            Fires multi-core arithmetic load to trigger statistical Z-Score &gt; 3.0 anomaly.
-          </p>
+
           <button
-            className="btn btn-outline"
-            style={{ marginTop: 'auto', borderColor: '#3b82f6', color: '#60a5fa' }}
+            className="apple-btn apple-btn-glass"
+            style={{ width: '100%', borderColor: 'var(--accent-blue)', color: 'var(--accent-blue)' }}
             disabled={isTriggering}
             onClick={() => handleStart('cpu')}
           >
-            Trigger CPU Stress ({duration}s)
+            <Zap size={14} />
+            <span>Simulate CPU Load ({duration}s)</span>
           </button>
         </div>
 
-        {/* Memory Pressure */}
-        <div style={{ background: 'var(--bg-surface-elevated)', padding: 16, borderRadius: 10, border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-            <Database size={18} color="#8b5cf6" />
-            <span>Memory Pressure</span>
+        {/* Memory Leak */}
+        <div
+          className="bento-card"
+          style={{
+            background: 'var(--bg-hover)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: 14,
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  background: 'var(--accent-purple-bg)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Database size={16} color="var(--accent-purple)" />
+              </div>
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>RAM Buffer Pressure</span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              Allocates temporary heap buffers with memory page touches, verifying kernel cgroup thresholds.
+            </p>
           </div>
-          <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-            Commits bounded RAM buffer (350MB) with page touches, safely released.
-          </p>
+
           <button
-            className="btn btn-outline"
-            style={{ marginTop: 'auto', borderColor: '#8b5cf6', color: '#c084fc' }}
+            className="apple-btn apple-btn-glass"
+            style={{ width: '100%', borderColor: 'var(--accent-purple)', color: 'var(--accent-purple)' }}
             disabled={isTriggering}
             onClick={() => handleStart('memory')}
           >
-            Trigger Memory Pressure ({duration}s)
+            <Zap size={14} />
+            <span>Simulate Memory Surge ({duration}s)</span>
           </button>
         </div>
 
         {/* Disk Growth */}
-        <div style={{ background: 'var(--bg-surface-elevated)', padding: 16, borderRadius: 10, border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-            <HardDrive size={18} color="#f59e0b" />
-            <span>Gradual Disk Growth</span>
+        <div
+          className="bento-card"
+          style={{
+            background: 'var(--bg-hover)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: 14,
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  background: 'var(--accent-amber-bg)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <HardDrive size={16} color="var(--accent-amber)" />
+              </div>
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Monotonic Storage Drift</span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              Generates linear disk writes on disposable scratch volumes to validate MATLAB OLS Time-To-Exhaustion (TTE).
+            </p>
           </div>
-          <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-            Writes dummy volume chunks to verify MATLAB linear regression &amp; TTE.
-          </p>
+
           <button
-            className="btn btn-outline"
-            style={{ marginTop: 'auto', borderColor: '#f59e0b', color: '#fbbf24' }}
+            className="apple-btn apple-btn-glass"
+            style={{ width: '100%', borderColor: 'var(--accent-amber)', color: 'var(--accent-amber)' }}
             disabled={isTriggering}
             onClick={() => handleStart('disk')}
           >
-            Trigger Disk Growth ({duration}s)
+            <Zap size={14} />
+            <span>Simulate Storage Drift ({duration}s)</span>
           </button>
         </div>
       </div>
 
-      {/* Active Simulations Status */}
+      {/* Active Simulations Monitor */}
       {activeSimulations.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 8, color: '#f59e0b' }}>
-            Active Simulation Processes:
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 10, color: 'var(--accent-amber)' }}>
+            Active Sandbox Processes:
           </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {activeSimulations.map((sim) => (
               <div
                 key={sim.id}
@@ -145,27 +243,30 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  padding: '8px 14px',
-                  borderRadius: 6,
+                  background: 'var(--accent-amber-bg)',
+                  border: '1px solid rgba(255, 159, 10, 0.3)',
+                  padding: '10px 18px',
+                  borderRadius: 'var(--radius-md)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span className="pulsing-dot warning" />
-                  <span className="code-font" style={{ fontWeight: 600 }}>{sim.id}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span className="status-dot warning" />
+                  <span className="font-mono" style={{ fontWeight: 700 }}>
+                    {sim.id}
+                  </span>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    ({sim.type.toUpperCase()} for {sim.durationSeconds}s)
+                    ({sim.type.toUpperCase()} execution for {sim.durationSeconds}s)
                   </span>
                 </div>
+
                 {sim.status === 'running' && (
                   <button
-                    className="btn btn-danger"
-                    style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                    className="apple-btn apple-btn-danger"
+                    style={{ padding: '4px 12px', fontSize: '0.75rem' }}
                     onClick={() => onStopSimulation(sim.id)}
                   >
                     <Square size={12} />
-                    <span>Stop Process</span>
+                    <span>Terminate Process</span>
                   </button>
                 )}
               </div>

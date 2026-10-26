@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { api } from './services/api';
+import { api, isForceDemoMode } from './services/api';
 import {
   Host,
   MetricSample,
@@ -11,6 +11,7 @@ import {
   HostStatus,
 } from './types';
 import { Header } from './components/Header';
+import { HeroSection } from './components/HeroSection';
 import { MetricsOverview } from './components/MetricsOverview';
 import { TelemetryChart } from './components/TelemetryChart';
 import { ForecastChart } from './components/ForecastChart';
@@ -19,6 +20,7 @@ import { AnomaliesList } from './components/AnomaliesList';
 import { IncidentsView } from './components/IncidentsView';
 import { AlertRulesView } from './components/AlertRulesView';
 import { SimulationPanel } from './components/SimulationPanel';
+import { ConnectionModal } from './components/ConnectionModal';
 import {
   Activity,
   Calculator,
@@ -30,6 +32,24 @@ import {
 } from 'lucide-react';
 
 export const App: React.FC = () => {
+  // Theme Management (Light vs Dark)
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('sentinelmat_theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      return 'light';
+    }
+    return 'dark';
+  });
+
+  // Connection Bridge Modal State
+  const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(isForceDemoMode());
+
+  // Parallax Ambient Coordinates
+  const [parallaxOffset, setParallaxOffset] = useState({ x: 0, y: 0 });
+
+  // Core Monitoring Data
   const [hosts, setHosts] = useState<Host[]>([]);
   const [selectedHostId, setSelectedHostId] = useState<string>('');
   const [latestSample, setLatestSample] = useState<MetricSample | undefined>();
@@ -43,6 +63,32 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
     'overview' | 'matlab' | 'forecast' | 'anomalies' | 'incidents' | 'rules' | 'simulation'
   >('overview');
+
+  // Apply Theme to document HTML element
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('sentinelmat_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  // Global Mouse Move Listener for Parallax Ambient Glows & Card Sheen
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const xRatio = (e.clientX / window.innerWidth - 0.5) * 40;
+      const yRatio = (e.clientY / window.innerHeight - 0.5) * 40;
+      setParallaxOffset({ x: xRatio, y: yRatio });
+
+      // Update CSS variables for cards
+      document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+      document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   // Load initial hosts list
   const loadHosts = useCallback(async () => {
@@ -61,12 +107,13 @@ export const App: React.FC = () => {
   const loadHostData = useCallback(async () => {
     if (!selectedHostId) return;
     try {
-      const [hist, anomList, incList, ruleList, simList] = await Promise.all([
+      const [hist, anomList, incList, ruleList, simList, latestAnalysis] = await Promise.all([
         api.getHistory(selectedHostId, 100),
         api.getAnomalies(selectedHostId),
         api.getIncidents(),
         api.getAlertRules(),
         api.getSimulationStatus(),
+        api.getLatestAnalysis(selectedHostId),
       ]);
 
       setHistory(hist);
@@ -77,6 +124,9 @@ export const App: React.FC = () => {
       setIncidents(incList);
       setRules(ruleList);
       setSimulations(simList);
+      if (latestAnalysis) {
+        setAnalysis(latestAnalysis);
+      }
     } catch (err) {
       console.warn('[App] Error loading host data:', err);
     }
@@ -87,10 +137,10 @@ export const App: React.FC = () => {
     loadHosts();
   }, [loadHosts]);
 
-  // Telemetry refresh polling loop (every 4 seconds)
+  // Telemetry refresh polling loop (every 1.5 seconds for live pulse)
   useEffect(() => {
     loadHostData();
-    const interval = setInterval(loadHostData, 4000);
+    const interval = setInterval(loadHostData, 1500);
     return () => clearInterval(interval);
   }, [loadHostData]);
 
@@ -103,7 +153,7 @@ export const App: React.FC = () => {
       setAnalysis(res);
       await loadHostData();
     } catch (err: any) {
-      alert(`MATLAB Analysis Failed: ${err.message}`);
+      console.error('[App] MATLAB Analysis Error:', err);
     } finally {
       setIsAnalyzing(false);
     }
@@ -142,8 +192,14 @@ export const App: React.FC = () => {
     await loadHostData();
   };
 
-  // Compute overall host status
-  const hostRecord = hosts.find((h) => h.id === selectedHostId);
+  const handleConnectionChange = () => {
+    setIsDemoMode(isForceDemoMode());
+    loadHosts();
+    loadHostData();
+  };
+
+  // Compute host record and health state
+  const hostRecord = hosts.find((h) => h.id === selectedHostId) || hosts[0];
   const healthState: HostStatus = hostRecord ? hostRecord.status : 'online';
 
   const diskHistorical = history.map((s) => s.disk_utilization);
@@ -151,8 +207,31 @@ export const App: React.FC = () => {
   const currentDiskEval = analysis?.metrics?.disk?.evaluation;
 
   return (
-    <div className="app-container">
-      {/* Top Header */}
+    <div className="app-shell">
+      {/* Parallax Ambient Depth Canvas */}
+      <div className="parallax-canvas">
+        <div
+          className="ambient-orb ambient-orb-1"
+          style={{
+            transform: `translate3d(${parallaxOffset.x * 1.2}px, ${parallaxOffset.y * 1.2}px, 0)`,
+          }}
+        />
+        <div
+          className="ambient-orb ambient-orb-2"
+          style={{
+            transform: `translate3d(${-parallaxOffset.x * 0.8}px, ${-parallaxOffset.y * 0.8}px, 0)`,
+          }}
+        />
+        <div
+          className="ambient-orb ambient-orb-3"
+          style={{
+            transform: `translate3d(${parallaxOffset.x * 0.5}px, ${parallaxOffset.y * 0.5}px, 0)`,
+          }}
+        />
+        <div className="parallax-grid-overlay" />
+      </div>
+
+      {/* Global Top Navbar */}
       <Header
         hosts={hosts}
         selectedHostId={selectedHostId}
@@ -162,117 +241,168 @@ export const App: React.FC = () => {
         isAnalyzing={isAnalyzing}
         onTriggerAnalysis={handleTriggerAnalysis}
         matlabEngineInfo={analysis?.engineInfo}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onOpenConnectionModal={() => setIsConnectionModalOpen(true)}
+        isDemoMode={isDemoMode}
       />
 
-      <main className="main-content">
-        {/* Real-time Telemetry Overview Cards */}
-        <MetricsOverview sample={latestSample} />
+      {/* Main Content Area */}
+      <main className="app-main">
+        {/* Apple Pro Hero Keynote Section with 3D Holographic Card */}
+        <HeroSection
+          latestSample={latestSample}
+          host={hostRecord}
+          onExploreMetrics={() => {
+            const el = document.getElementById('telemetry-section');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }}
+          onTriggerAnalysis={handleTriggerAnalysis}
+          isAnalyzing={isAnalyzing}
+        />
 
-        {/* View Selection Tabs */}
-        <div className="tabs-header">
-          <button
-            className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
-          >
-            <Activity size={16} />
-            <span>Telemetry Stream</span>
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'forecast' ? 'active' : ''}`}
-            onClick={() => setActiveTab('forecast')}
-          >
-            <TrendingUp size={16} />
-            <span>Capacity Forecast (TTE)</span>
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'matlab' ? 'active' : ''}`}
-            onClick={() => setActiveTab('matlab')}
-          >
-            <Calculator size={16} />
-            <span>MATLAB Statistics</span>
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'anomalies' ? 'active' : ''}`}
-            onClick={() => setActiveTab('anomalies')}
-          >
-            <AlertTriangle size={16} />
-            <span>Anomalies ({anomalies.length})</span>
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'incidents' ? 'active' : ''}`}
-            onClick={() => setActiveTab('incidents')}
-          >
-            <ShieldAlert size={16} />
-            <span>Incidents ({incidents.filter((i) => i.status !== 'resolved').length})</span>
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'rules' ? 'active' : ''}`}
-            onClick={() => setActiveTab('rules')}
-          >
-            <Bell size={16} />
-            <span>Alert Rules</span>
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'simulation' ? 'active' : ''}`}
-            onClick={() => setActiveTab('simulation')}
-          >
-            <Flame size={16} color="#f59e0b" />
-            <span>Fault Simulation</span>
-          </button>
+        {/* Real-time Hardware Telemetry Bento Grid */}
+        <div id="telemetry-section">
+          <MetricsOverview sample={latestSample} />
         </div>
 
-        {/* Tab Panels */}
-        {activeTab === 'overview' && (
-          <TelemetryChart samples={history} stats={analysis?.metrics?.cpu?.stats} />
-        )}
+        {/* Navigation Tabs (Apple Cupertino Segmented Control) */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
+            paddingTop: 8,
+          }}
+        >
+          <div className="segmented-control" style={{ maxWidth: '100%' }}>
+            <button
+              className={`segmented-tab ${activeTab === 'overview' ? 'active' : ''}`}
+              onClick={() => setActiveTab('overview')}
+            >
+              <Activity size={15} />
+              <span>Telemetry Stream</span>
+            </button>
 
-        {activeTab === 'forecast' && (
-          <ForecastChart
-            forecast={currentDiskForecast}
-            evaluation={currentDiskEval}
-            historicalValues={diskHistorical}
-            metricTitle="Disk Capacity Exhaustion Model (MATLAB OLS)"
-          />
-        )}
+            <button
+              className={`segmented-tab ${activeTab === 'forecast' ? 'active' : ''}`}
+              onClick={() => setActiveTab('forecast')}
+            >
+              <TrendingUp size={15} />
+              <span>Capacity Forecast (TTE)</span>
+            </button>
 
-        {activeTab === 'matlab' && <MatlabStatsTable analysis={analysis} />}
+            <button
+              className={`segmented-tab ${activeTab === 'matlab' ? 'active' : ''}`}
+              onClick={() => setActiveTab('matlab')}
+            >
+              <Calculator size={15} />
+              <span>MATLAB Statistics</span>
+            </button>
 
-        {activeTab === 'anomalies' && <AnomaliesList anomalies={anomalies} />}
+            <button
+              className={`segmented-tab ${activeTab === 'anomalies' ? 'active' : ''}`}
+              onClick={() => setActiveTab('anomalies')}
+            >
+              <AlertTriangle size={15} />
+              <span>Anomalies ({anomalies.length})</span>
+            </button>
 
-        {activeTab === 'incidents' && (
-          <IncidentsView
-            incidents={incidents}
-            onAcknowledge={handleAcknowledge}
-            onResolve={handleResolve}
-          />
-        )}
+            <button
+              className={`segmented-tab ${activeTab === 'incidents' ? 'active' : ''}`}
+              onClick={() => setActiveTab('incidents')}
+            >
+              <ShieldAlert size={15} />
+              <span>Incidents ({incidents.filter((i) => i.status !== 'resolved').length})</span>
+            </button>
 
-        {activeTab === 'rules' && (
-          <AlertRulesView
-            rules={rules}
-            onToggleRule={handleToggleRule}
-            onToggleTelegram={handleToggleTelegram}
-          />
-        )}
+            <button
+              className={`segmented-tab ${activeTab === 'rules' ? 'active' : ''}`}
+              onClick={() => setActiveTab('rules')}
+            >
+              <Bell size={15} />
+              <span>Guardrails</span>
+            </button>
 
-        {activeTab === 'simulation' && (
-          <SimulationPanel
-            activeSimulations={simulations}
-            onStartSimulation={handleStartSimulation}
-            onStopSimulation={handleStopSimulation}
-          />
-        )}
+            <button
+              className={`segmented-tab ${activeTab === 'simulation' ? 'active' : ''}`}
+              onClick={() => setActiveTab('simulation')}
+            >
+              <Flame size={15} color="var(--accent-amber)" />
+              <span>Fault Simulation</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Active Tab Panel */}
+        <div style={{ minHeight: 380 }}>
+          {activeTab === 'overview' && (
+            <TelemetryChart samples={history} stats={analysis?.metrics?.cpu?.stats} />
+          )}
+
+          {activeTab === 'forecast' && (
+            <ForecastChart
+              forecast={currentDiskForecast}
+              evaluation={currentDiskEval}
+              historicalValues={diskHistorical}
+              metricTitle="Storage Capacity Exhaustion Model (MATLAB OLS)"
+            />
+          )}
+
+          {activeTab === 'matlab' && <MatlabStatsTable analysis={analysis} />}
+
+          {activeTab === 'anomalies' && <AnomaliesList anomalies={anomalies} />}
+
+          {activeTab === 'incidents' && (
+            <IncidentsView
+              incidents={incidents}
+              onAcknowledge={handleAcknowledge}
+              onResolve={handleResolve}
+            />
+          )}
+
+          {activeTab === 'rules' && (
+            <AlertRulesView
+              rules={rules}
+              onToggleRule={handleToggleRule}
+              onToggleTelegram={handleToggleTelegram}
+            />
+          )}
+
+          {activeTab === 'simulation' && (
+            <SimulationPanel
+              activeSimulations={simulations}
+              onStartSimulation={handleStartSimulation}
+              onStopSimulation={handleStopSimulation}
+            />
+          )}
+        </div>
       </main>
 
-      {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--border-subtle)', padding: '16px 24px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-        SentinelMAT &bull; Linux Infrastructure Monitoring &amp; MATLAB Statistical Anomaly Detection &bull; {new Date().getFullYear()}
+      {/* Connection & Vercel Bridge Modal */}
+      <ConnectionModal
+        isOpen={isConnectionModalOpen}
+        onClose={() => setIsConnectionModalOpen(false)}
+        onConnectionChange={handleConnectionChange}
+      />
+
+      {/* Global Apple-tier Footer */}
+      <footer className="apple-footer">
+        <div className="footer-inner">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>SentinelMAT</span>
+            <span>&bull;</span>
+            <span>Industrial Linux Kernel Telemetry &amp; MATLAB® Numerical Analysis</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span>Engine: GNU Octave / MATLAB 9.2</span>
+            <span>&bull;</span>
+            <span style={{ color: 'var(--accent-emerald)' }}>3-Sigma Fault Prediction</span>
+          </div>
+        </div>
       </footer>
     </div>
   );
