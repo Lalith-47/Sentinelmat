@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS anomalies (
     baseline_std DOUBLE PRECISION NOT NULL,
     z_score DOUBLE PRECISION NOT NULL,
     threshold DOUBLE PRECISION NOT NULL,
-    severity VARCHAR(32) NOT NULL CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+    severity VARCHAR(32) NOT NULL CHECK (severity IN ('low', 'medium', 'high', 'critical', 'warning')),
     explanation TEXT NOT NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'investigating', 'resolved')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

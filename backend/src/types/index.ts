@@ -1,5 +1,5 @@
 export type HostStatus = 'online' | 'warning' | 'critical' | 'offline';
-export type Severity = 'low' | 'medium' | 'high' | 'critical';
+export type Severity = 'low' | 'medium' | 'high' | 'critical' | 'warning';
 export type IncidentStatus = 'open' | 'acknowledged' | 'resolved';
 export type MetricType = 'cpu' | 'memory' | 'disk' | 'network_rx' | 'network_tx';
 export type AlertCondition = 'gt' | 'lt' | 'z_score_gt' | 'tte_lt';
