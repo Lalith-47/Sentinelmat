@@ -20,6 +20,17 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && modalType) {
+        setModalType(null);
+        setSelectedIncident(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modalType]);
+
   const filtered = incidents.filter((i) => {
     if (filterStatus === 'all') return true;
     return i.status === filterStatus;

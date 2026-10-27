@@ -29,7 +29,18 @@ import {
   ShieldAlert,
   Bell,
   Flame,
+  ArrowLeft,
+  ArrowUp,
 } from 'lucide-react';
+
+type TabType = 'overview' | 'forecast' | 'matlab' | 'anomalies' | 'incidents' | 'rules' | 'simulation';
+
+const getTabFromHash = (): TabType => {
+  if (typeof window === 'undefined') return 'overview';
+  const hash = window.location.hash.replace(/^#/, '');
+  const validTabs: TabType[] = ['overview', 'forecast', 'matlab', 'anomalies', 'incidents', 'rules', 'simulation'];
+  return validTabs.includes(hash as TabType) ? (hash as TabType) : 'overview';
+};
 
 export const App: React.FC = () => {
   // Theme Management (Light vs Dark)
@@ -49,9 +60,12 @@ export const App: React.FC = () => {
   // Parallax Ambient Coordinates
   const [parallaxOffset, setParallaxOffset] = useState({ x: 0, y: 0 });
 
+  // Floating Scroll to Top button state
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
   // Core Monitoring Data (Pre-seeded for instant first-frame rendering on Vercel)
   const [hosts, setHosts] = useState<Host[]>(() => api.getInitialHosts());
-  const [selectedHostId, setSelectedHostId] = useState<string>('sentinel-prod-01');
+  const [selectedHostId, setSelectedHostId] = useState<string>('arch');
   const [latestSample, setLatestSample] = useState<MetricSample | undefined>(() => api.getInitialSample());
   const [history, setHistory] = useState<MetricSample[]>(() => api.getInitialHistory());
   const [analysis, setAnalysis] = useState<MatlabPipelineOutput | undefined>(() => api.getInitialAnalysis());
@@ -60,9 +74,38 @@ export const App: React.FC = () => {
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [simulations, setSimulations] = useState<SimulationItem[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    'overview' | 'matlab' | 'forecast' | 'anomalies' | 'incidents' | 'rules' | 'simulation'
-  >('overview');
+  
+  // Tab Navigation with Browser History Integration
+  const [activeTab, setActiveTab] = useState<TabType>(() => getTabFromHash());
+
+  const switchTab = useCallback((tab: TabType) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined' && window.location.hash !== `#${tab}`) {
+      window.history.pushState(null, '', `#${tab}`);
+    }
+  }, []);
+
+  // Sync with browser Back and Forward gestures
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveTab(getTabFromHash());
+    };
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, []);
+
+  // Monitor scroll for back to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 350);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Apply Theme to document HTML element
   useEffect(() => {
@@ -94,14 +137,19 @@ export const App: React.FC = () => {
   const loadHosts = useCallback(async () => {
     try {
       const data = await api.getHosts();
-      setHosts(data);
-      if (data.length > 0 && !selectedHostId) {
-        setSelectedHostId(data[0].id);
+      if (data && data.length > 0) {
+        setHosts(data);
+        setSelectedHostId((prev) => {
+          if (!prev || !data.some((h) => h.id === prev)) {
+            return data[0].id;
+          }
+          return prev;
+        });
       }
     } catch (err) {
       console.warn('[App] Error fetching hosts:', err);
     }
-  }, [selectedHostId]);
+  }, []);
 
   // Load telemetry and analysis for selected host
   const loadHostData = useCallback(async () => {
@@ -245,6 +293,7 @@ export const App: React.FC = () => {
         onToggleTheme={toggleTheme}
         onOpenConnectionModal={() => setIsConnectionModalOpen(true)}
         isDemoMode={isDemoMode}
+        onResetToOverview={() => switchTab('overview')}
       />
 
       {/* Main Content Area */}
@@ -280,7 +329,7 @@ export const App: React.FC = () => {
           <div className="segmented-control" style={{ maxWidth: '100%' }}>
             <button
               className={`segmented-tab ${activeTab === 'overview' ? 'active' : ''}`}
-              onClick={() => setActiveTab('overview')}
+              onClick={() => switchTab('overview')}
             >
               <Activity size={15} />
               <span>Telemetry Stream</span>
@@ -288,7 +337,7 @@ export const App: React.FC = () => {
 
             <button
               className={`segmented-tab ${activeTab === 'forecast' ? 'active' : ''}`}
-              onClick={() => setActiveTab('forecast')}
+              onClick={() => switchTab('forecast')}
             >
               <TrendingUp size={15} />
               <span>Capacity Forecast (TTE)</span>
@@ -296,7 +345,7 @@ export const App: React.FC = () => {
 
             <button
               className={`segmented-tab ${activeTab === 'matlab' ? 'active' : ''}`}
-              onClick={() => setActiveTab('matlab')}
+              onClick={() => switchTab('matlab')}
             >
               <Calculator size={15} />
               <span>MATLAB Statistics</span>
@@ -304,7 +353,7 @@ export const App: React.FC = () => {
 
             <button
               className={`segmented-tab ${activeTab === 'anomalies' ? 'active' : ''}`}
-              onClick={() => setActiveTab('anomalies')}
+              onClick={() => switchTab('anomalies')}
             >
               <AlertTriangle size={15} />
               <span>Anomalies ({anomalies.length})</span>
@@ -312,7 +361,7 @@ export const App: React.FC = () => {
 
             <button
               className={`segmented-tab ${activeTab === 'incidents' ? 'active' : ''}`}
-              onClick={() => setActiveTab('incidents')}
+              onClick={() => switchTab('incidents')}
             >
               <ShieldAlert size={15} />
               <span>Incidents ({incidents.filter((i) => i.status !== 'resolved').length})</span>
@@ -320,7 +369,7 @@ export const App: React.FC = () => {
 
             <button
               className={`segmented-tab ${activeTab === 'rules' ? 'active' : ''}`}
-              onClick={() => setActiveTab('rules')}
+              onClick={() => switchTab('rules')}
             >
               <Bell size={15} />
               <span>Guardrails</span>
@@ -328,13 +377,51 @@ export const App: React.FC = () => {
 
             <button
               className={`segmented-tab ${activeTab === 'simulation' ? 'active' : ''}`}
-              onClick={() => setActiveTab('simulation')}
+              onClick={() => switchTab('simulation')}
             >
               <Flame size={15} color="var(--accent-amber)" />
               <span>Fault Simulation</span>
             </button>
           </div>
         </div>
+
+        {/* Navigation Breadcrumb Bar when viewing secondary tabs */}
+        {activeTab !== 'overview' && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'var(--bg-surface-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              padding: '10px 16px',
+              backdropFilter: 'blur(16px)',
+              flexWrap: 'wrap',
+              gap: 10,
+            }}
+          >
+            <button
+              onClick={() => switchTab('overview')}
+              className="apple-btn apple-btn-glass"
+              style={{
+                padding: '6px 14px',
+                fontSize: '0.825rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+              title="Return to Telemetry Stream Overview"
+            >
+              <ArrowLeft size={15} />
+              <span>Back to Telemetry Overview</span>
+            </button>
+
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              Viewing <strong style={{ color: 'var(--text-primary)' }}>{activeTab.toUpperCase()}</strong> &bull; Press browser Back to return
+            </div>
+          </div>
+        )}
 
         {/* Active Tab Panel */}
         <div style={{ minHeight: 380 }}>
@@ -380,6 +467,34 @@ export const App: React.FC = () => {
           )}
         </div>
       </main>
+
+      {/* Floating Back to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="apple-btn apple-btn-glass"
+          style={{
+            position: 'fixed',
+            bottom: 28,
+            right: 28,
+            zIndex: 99,
+            borderRadius: 'var(--radius-full)',
+            boxShadow: 'var(--shadow-elevated)',
+            padding: '10px 16px',
+            fontSize: '0.8rem',
+            backdropFilter: 'blur(20px)',
+            background: 'var(--bg-glass-heavy)',
+            border: '1px solid var(--border-medium)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+          title="Scroll to Top"
+        >
+          <ArrowUp size={15} color="var(--accent-blue)" />
+          <span>Top</span>
+        </button>
+      )}
 
       {/* Connection & Vercel Bridge Modal */}
       <ConnectionModal

@@ -11,11 +11,21 @@ import {
 // Connection Configuration Storage Key
 const STORAGE_KEY_BACKEND_URL = 'sentinelmat_backend_url';
 const STORAGE_KEY_FORCE_DEMO = 'sentinelmat_force_demo';
+export const DEFAULT_TUNNEL_URL = 'https://serviceably-unmincing-lu.ngrok-free.dev';
 
 export function getStoredBackendUrl(): string {
   const envUrl = (import.meta as any).env?.VITE_API_BASE_URL || '';
   const stored = localStorage.getItem(STORAGE_KEY_BACKEND_URL);
-  if (stored !== null) return stored;
+  
+  // On HTTPS sites (e.g. stats.lalith.dev or Vercel), plain HTTP is blocked by browsers
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    if (stored && stored.startsWith('https://')) {
+      return stored;
+    }
+    return envUrl || DEFAULT_TUNNEL_URL;
+  }
+
+  if (stored !== null && stored.trim() !== '') return stored;
   return envUrl || 'http://localhost:5000';
 }
 
@@ -43,9 +53,22 @@ export function shouldFetchBackend(): boolean {
   return true;
 }
 
-function getApiBase(): string {
+export function getApiBase(): string {
   const base = getStoredBackendUrl().replace(/\/$/, '');
   return `${base}/api`;
+}
+
+export async function fetchFromBackend(path: string, options: RequestInit = {}): Promise<Response> {
+  const url = `${getApiBase()}${path}`;
+  const headers = new Headers(options.headers || {});
+  headers.set('ngrok-skip-browser-warning', 'true');
+  if (options.body && typeof options.body === 'string' && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  return fetch(url, {
+    ...options,
+    headers,
+  });
 }
 
 // ============================================================================
@@ -147,32 +170,37 @@ let mockAlertRules: AlertRule[] = [
 
 let mockActiveSimulations: SimulationItem[] = [];
 
-// Initialize 60 rolling samples
+// Initialize 60 rolling samples matching local machine baseline (arch)
 function initMockHistory() {
   if (mockHistory.length > 0) return;
   const now = Date.now();
-  const baseCpu = 32;
-  const baseMem = 58;
-  const baseDisk = 76;
+  const baseCpu = 8.5;
+  const baseMem = 58.2;
+  const baseDisk = 83.1;
+  const memTotal = 16437747712;
+  const diskTotal = 370761805824;
 
   for (let i = 59; i >= 0; i--) {
-    const t = new Date(now - i * 4000).toISOString();
-    const cycle = Math.sin((60 - i) * 0.2);
+    const t = new Date(now - i * 1500).toISOString();
+    const cycle = Math.sin((60 - i) * 0.15);
+    const cpuVal = Math.max(2, Math.min(95, baseCpu + cycle * 3.5 + (Math.random() * 2 - 1)));
+    const memVal = Math.max(50, Math.min(80, baseMem + cycle * 0.5 + (Math.random() * 0.3 - 0.15)));
+    const diskVal = baseDisk;
     mockHistory.push({
-      host_id: 'sentinel-prod-01',
+      host_id: 'arch',
       timestamp: t,
-      cpu_utilization: Math.max(12, Math.min(95, baseCpu + cycle * 14 + (Math.random() * 8 - 4))),
-      cpu_load_1m: parseFloat((1.2 + Math.random() * 0.6).toFixed(2)),
-      cpu_load_5m: 1.45,
-      cpu_load_15m: 1.38,
-      memory_utilization: Math.max(30, Math.min(96, baseMem + cycle * 4 + (Math.random() * 4 - 2))),
-      memory_used_bytes: 38654705664,
-      memory_total_bytes: 67108864000,
-      disk_utilization: Math.max(40, Math.min(98, baseDisk + (60 - i) * 0.12)),
-      disk_used_bytes: 751619276800,
-      disk_total_bytes: 984088215552,
-      network_rx_bytes_sec: 14500000 + Math.random() * 4500000,
-      network_tx_bytes_sec: 8200000 + Math.random() * 2500000,
+      cpu_utilization: parseFloat(cpuVal.toFixed(1)),
+      cpu_load_1m: parseFloat((1.1 + cpuVal / 30).toFixed(2)),
+      cpu_load_5m: 1.25,
+      cpu_load_15m: 1.10,
+      memory_utilization: parseFloat(memVal.toFixed(1)),
+      memory_used_bytes: Math.round((memVal / 100) * memTotal),
+      memory_total_bytes: memTotal,
+      disk_utilization: parseFloat(diskVal.toFixed(1)),
+      disk_used_bytes: Math.round((diskVal / 100) * diskTotal),
+      disk_total_bytes: diskTotal,
+      network_rx_bytes_sec: 24000 + Math.random() * 12000,
+      network_tx_bytes_sec: 48000 + Math.random() * 18000,
       availability: true,
     });
   }
@@ -183,6 +211,8 @@ function stepMockSample(): MetricSample {
   initMockHistory();
   const last = mockHistory[mockHistory.length - 1];
   const now = Date.now();
+  const memTotal = 16437747712;
+  const diskTotal = 370761805824;
 
   // Check if simulation is boosting metrics
   let cpuBoost = 0;
@@ -195,31 +225,31 @@ function stepMockSample(): MetricSample {
       sim.status = 'completed';
       return false;
     }
-    if (sim.type === 'cpu') cpuBoost += 45;
-    if (sim.type === 'memory') memBoost += 24;
-    if (sim.type === 'disk') diskBoost += 0.8;
+    if (sim.type === 'cpu') cpuBoost += 55;
+    if (sim.type === 'memory') memBoost += 3.5;
+    if (sim.type === 'disk') diskBoost += 0.2;
     return true;
   });
 
-  const nextCpu = Math.max(10, Math.min(99, last.cpu_utilization + (Math.random() * 6 - 3) + (cpuBoost > 0 ? 15 : 0)));
-  const nextMem = Math.max(20, Math.min(98, last.memory_utilization + (Math.random() * 2 - 1) + (memBoost > 0 ? 8 : 0)));
-  const nextDisk = Math.max(30, Math.min(99, last.disk_utilization + 0.05 + diskBoost));
+  const nextCpu = Math.max(3, Math.min(99, last.cpu_utilization * 0.8 + 8.5 * 0.2 + (Math.random() * 3 - 1.5) + (cpuBoost > 0 ? cpuBoost : 0)));
+  const nextMem = Math.max(50, Math.min(85, last.memory_utilization * 0.95 + 58.2 * 0.05 + (Math.random() * 0.4 - 0.2) + (memBoost > 0 ? memBoost : 0)));
+  const nextDisk = Math.max(30, Math.min(99, 83.1 + diskBoost));
 
   const sample: MetricSample = {
-    host_id: 'sentinel-prod-01',
+    host_id: 'arch',
     timestamp: new Date().toISOString(),
     cpu_utilization: parseFloat(nextCpu.toFixed(1)),
-    cpu_load_1m: parseFloat((1.1 + nextCpu / 50).toFixed(2)),
-    cpu_load_5m: 1.48,
-    cpu_load_15m: 1.40,
+    cpu_load_1m: parseFloat((1.1 + nextCpu / 30).toFixed(2)),
+    cpu_load_5m: 1.25,
+    cpu_load_15m: 1.10,
     memory_utilization: parseFloat(nextMem.toFixed(1)),
-    memory_used_bytes: Math.round((nextMem / 100) * 67108864000),
-    memory_total_bytes: 67108864000,
+    memory_used_bytes: Math.round((nextMem / 100) * memTotal),
+    memory_total_bytes: memTotal,
     disk_utilization: parseFloat(nextDisk.toFixed(1)),
-    disk_used_bytes: Math.round((nextDisk / 100) * 984088215552),
-    disk_total_bytes: 984088215552,
-    network_rx_bytes_sec: 15200000 + Math.random() * 5000000,
-    network_tx_bytes_sec: 9100000 + Math.random() * 3000000,
+    disk_used_bytes: Math.round((nextDisk / 100) * diskTotal),
+    disk_total_bytes: diskTotal,
+    network_rx_bytes_sec: 24000 + Math.random() * 12000,
+    network_tx_bytes_sec: 48000 + Math.random() * 18000,
     availability: true,
   };
 
@@ -530,6 +560,8 @@ function normalizeAnalysisResponse(raw: any, hostId: string): MatlabPipelineOutp
 // ============================================================================
 // Public API Client with Seamless Backend Connection & Offline Graceful Fallback
 // ============================================================================
+// Public API Client with Seamless Backend Connection & Offline Graceful Fallback
+// ============================================================================
 export const api = {
   // Test connection to backend
   async pingBackend(targetUrl?: string): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
@@ -538,7 +570,10 @@ export const api = {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(url, { signal: controller.signal });
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+      });
       clearTimeout(timeout);
       const latency = Math.round(performance.now() - start);
       if (res.ok) {
@@ -554,45 +589,23 @@ export const api = {
   async getHosts(): Promise<Host[]> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/hosts`, { signal: AbortSignal.timeout(3000) });
-        if (res.ok) return res.json();
+        const res = await fetchFromBackend('/hosts', { signal: AbortSignal.timeout(3500) });
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list) && list.length > 0) return list;
+        }
       } catch (e) {
-        // Fallback to mock
+        // Fallback to initial
       }
     }
-    return [
-      {
-        id: 'sentinel-prod-01',
-        hostname: 'sentinel-core.infra.internal',
-        ip_address: '10.240.0.14',
-        os_info: 'Ubuntu Linux 24.04 LTS (x86_64 Kernel 6.8.0-45-generic)',
-        cpu_count: 32,
-        total_memory_bytes: 67108864000,
-        total_disk_bytes: 984088215552,
-        status: 'online',
-        last_seen_at: new Date().toISOString(),
-        created_at: '2026-01-01T00:00:00Z',
-      },
-      {
-        id: 'sentinel-edge-02',
-        hostname: 'sentinel-gateway.eu-central.node',
-        ip_address: '10.240.1.28',
-        os_info: 'Debian 12 Bookworm (x86_64)',
-        cpu_count: 16,
-        total_memory_bytes: 33554432000,
-        total_disk_bytes: 512000000000,
-        status: 'online',
-        last_seen_at: new Date().toISOString(),
-        created_at: '2026-01-01T00:00:00Z',
-      },
-    ];
+    return this.getInitialHosts();
   },
 
   // Health
   async getHealth(): Promise<any> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/health`, { signal: AbortSignal.timeout(3000) });
+        const res = await fetchFromBackend('/health', { signal: AbortSignal.timeout(3000) });
         if (res.ok) return res.json();
       } catch (e) {}
     }
@@ -603,10 +616,13 @@ export const api = {
   async getHistory(hostId: string, limit: number = 100): Promise<MetricSample[]> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/metrics/history?hostId=${encodeURIComponent(hostId)}&limit=${limit}`, {
+        const res = await fetchFromBackend(`/metrics/history?hostId=${encodeURIComponent(hostId)}&limit=${limit}`, {
           signal: AbortSignal.timeout(3500),
         });
-        if (res.ok) return res.json();
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) return data;
+        }
       } catch (e) {}
     }
     stepMockSample();
@@ -617,10 +633,13 @@ export const api = {
   async getLatestSample(hostId: string): Promise<MetricSample> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/metrics/latest/${encodeURIComponent(hostId)}`, {
+        const res = await fetchFromBackend(`/metrics/latest/${encodeURIComponent(hostId)}`, {
           signal: AbortSignal.timeout(3000),
         });
-        if (res.ok) return res.json();
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.timestamp) return data;
+        }
       } catch (e) {}
     }
     return stepMockSample();
@@ -630,9 +649,8 @@ export const api = {
   async triggerMatlabAnalysis(hostId: string): Promise<MatlabPipelineOutput> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/analysis/run`, {
+        const res = await fetchFromBackend('/analysis/run', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ hostId }),
           signal: AbortSignal.timeout(35000),
         });
@@ -650,7 +668,7 @@ export const api = {
   async getLatestAnalysis(hostId: string): Promise<MatlabPipelineOutput> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/analysis/latest?hostId=${encodeURIComponent(hostId)}`, {
+        const res = await fetchFromBackend(`/analysis/latest?hostId=${encodeURIComponent(hostId)}`, {
           signal: AbortSignal.timeout(3500),
         });
         if (res.ok) {
@@ -666,15 +684,15 @@ export const api = {
   async getAnomalies(hostId?: string): Promise<AnomalyRecord[]> {
     if (shouldFetchBackend()) {
       try {
-        const url = hostId ? `${getApiBase()}/anomalies?hostId=${encodeURIComponent(hostId)}` : `${getApiBase()}/anomalies`;
-        const res = await fetch(url, { signal: AbortSignal.timeout(3500) });
+        const path = hostId ? `/anomalies?hostId=${encodeURIComponent(hostId)}` : '/anomalies';
+        const res = await fetchFromBackend(path, { signal: AbortSignal.timeout(3500) });
         if (res.ok) return res.json();
       } catch (e) {}
     }
     return [
       {
         id: 201,
-        host_id: hostId || 'sentinel-prod-01',
+        host_id: hostId || 'arch',
         metric_type: 'cpu',
         detected_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
         observed_value: 86.4,
@@ -688,7 +706,7 @@ export const api = {
       },
       {
         id: 200,
-        host_id: hostId || 'sentinel-prod-01',
+        host_id: hostId || 'arch',
         metric_type: 'disk',
         detected_at: new Date(Date.now() - 65 * 60 * 1000).toISOString(),
         observed_value: 88.2,
@@ -707,7 +725,7 @@ export const api = {
   async getIncidents(): Promise<IncidentRecord[]> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/incidents`, { signal: AbortSignal.timeout(3500) });
+        const res = await fetchFromBackend('/incidents', { signal: AbortSignal.timeout(3500) });
         if (res.ok) return res.json();
       } catch (e) {}
     }
@@ -717,9 +735,8 @@ export const api = {
   async acknowledgeIncident(id: number, user: string = 'Operator'): Promise<IncidentRecord> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/incidents/${id}/acknowledge`, {
+        const res = await fetchFromBackend(`/incidents/${id}/acknowledge`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user }),
         });
         if (res.ok) return res.json();
@@ -741,9 +758,8 @@ export const api = {
   async resolveIncident(id: number, notes: string): Promise<IncidentRecord> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/incidents/${id}/resolve`, {
+        const res = await fetchFromBackend(`/incidents/${id}/resolve`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ notes }),
         });
         if (res.ok) return res.json();
@@ -766,7 +782,7 @@ export const api = {
   async getAlertRules(): Promise<AlertRule[]> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/alerts/rules`, { signal: AbortSignal.timeout(3500) });
+        const res = await fetchFromBackend('/alerts/rules', { signal: AbortSignal.timeout(3500) });
         if (res.ok) return res.json();
       } catch (e) {}
     }
@@ -776,9 +792,8 @@ export const api = {
   async updateAlertRule(id: number, updates: Partial<AlertRule>): Promise<AlertRule> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/alerts/rules/${id}`, {
+        const res = await fetchFromBackend(`/alerts/rules/${id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updates),
         });
         if (res.ok) return res.json();
@@ -796,9 +811,8 @@ export const api = {
   async startSimulation(type: 'cpu' | 'memory' | 'disk' | 'network', durationSeconds: number): Promise<SimulationItem> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/simulation/start`, {
+        const res = await fetchFromBackend('/simulation/start', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type, durationSeconds }),
         });
         if (res.ok) return res.json();
@@ -818,7 +832,7 @@ export const api = {
   async getSimulationStatus(): Promise<SimulationItem[]> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/simulation/status`, { signal: AbortSignal.timeout(3500) });
+        const res = await fetchFromBackend('/simulation/status', { signal: AbortSignal.timeout(3500) });
         if (res.ok) return res.json();
       } catch (e) {}
     }
@@ -828,7 +842,7 @@ export const api = {
   async stopSimulation(id: string): Promise<any> {
     if (shouldFetchBackend()) {
       try {
-        const res = await fetch(`${getApiBase()}/simulation/stop/${id}`, { method: 'POST' });
+        const res = await fetchFromBackend(`/simulation/stop/${id}`, { method: 'POST' });
         if (res.ok) return res.json();
       } catch (e) {}
     }
@@ -839,25 +853,25 @@ export const api = {
   getInitialHosts(): Host[] {
     return [
       {
-        id: 'sentinel-prod-01',
-        hostname: 'sentinel-core.infra.internal',
-        ip_address: '10.240.0.14',
-        os_info: 'Ubuntu Linux 24.04 LTS (x86_64 Kernel 6.8.0-45-generic)',
-        cpu_count: 32,
-        total_memory_bytes: 67108864000,
-        total_disk_bytes: 984088215552,
+        id: 'arch',
+        hostname: 'arch',
+        ip_address: '10.115.157.193',
+        os_info: 'Linux 6.18.58-1-lts (x86_64)',
+        cpu_count: 16,
+        total_memory_bytes: 16437747712,
+        total_disk_bytes: 370761805824,
         status: 'online',
         last_seen_at: new Date().toISOString(),
         created_at: '2026-01-01T00:00:00Z',
       },
       {
-        id: 'sentinel-edge-02',
-        hostname: 'sentinel-gateway.eu-central.node',
-        ip_address: '10.240.1.28',
-        os_info: 'Debian 12 Bookworm (x86_64)',
-        cpu_count: 16,
-        total_memory_bytes: 33554432000,
-        total_disk_bytes: 512000000000,
+        id: 'test-arch-host',
+        hostname: 'arch-sentinel-test',
+        ip_address: '192.168.1.100',
+        os_info: 'Linux Arch 6.10',
+        cpu_count: 8,
+        total_memory_bytes: 16000000000,
+        total_disk_bytes: 500000000000,
         status: 'online',
         last_seen_at: new Date().toISOString(),
         created_at: '2026-01-01T00:00:00Z',

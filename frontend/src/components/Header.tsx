@@ -15,6 +15,7 @@ interface HeaderProps {
   onToggleTheme: () => void;
   onOpenConnectionModal: () => void;
   isDemoMode: boolean;
+  onResetToOverview?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
   onOpenConnectionModal,
   isDemoMode,
+  onResetToOverview,
 }) => {
   // Compute staleness (if last sample > 15 seconds ago)
   const isStale = React.useMemo(() => {
@@ -38,11 +40,18 @@ export const Header: React.FC<HeaderProps> = ({
     return diffSec > 15;
   }, [lastSampleTime]);
 
+  const handleBrandClick = () => {
+    if (onResetToOverview) {
+      onResetToOverview();
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <header className="navbar-shell">
       <div className="navbar-inner">
         {/* Brand Lockup */}
-        <div className="brand-lockup" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+        <div className="brand-lockup" onClick={handleBrandClick} style={{ cursor: 'pointer' }} title="Return to Overview">
           <div className="brand-icon-box">
             <Activity size={22} color="#ffffff" />
           </div>
